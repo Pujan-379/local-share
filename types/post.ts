@@ -1,7 +1,6 @@
 export interface Post {
   id: string;
   network_key: string;
-  owner_token: string;
   type: 'text' | 'file';
   content: string;
   file_name: string | null;
