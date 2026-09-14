@@ -4,10 +4,9 @@ import SharedNote from "@/components/SharedNote";
 export default function Home() {
   return (
     <>
-      {/* <ComposeBox />
-      <Feed /> */}
-
       <SharedNote />
+      <ComposeBox />
+      <Feed />
     </>
   );
 }

@@ -1,30 +1,25 @@
 "use client";
 
-import { useState } from "react";
-
 export default function ComposeBox() {
-  const [text, setText] = useState("");
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-  async function handleSubmit() {
-    if (!text.trim()) return;
-    const res = await fetch("/api/posts", {
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch("/api/upload", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type: "text", content: text }),
+      body: formData,
     });
-    if (res.ok) {
-      setText("");
-    }
+
+    const data = await res.json();
+    console.log(data); // temporary: so we can see success or error in the browser console
   }
 
   return (
     <div>
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder="Share something with this network..."
-      />
-      <button onClick={handleSubmit}>Post</button>
+      <input type="file" onChange={handleFileChange} />
     </div>
   );
 }
