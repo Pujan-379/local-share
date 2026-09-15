@@ -1,36 +1,77 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# local-share
 
-## Getting Started
+Anonymous, network-scoped content sharing. Anyone connected to the same WiFi can share text or files — no login, no signup. Your network *is* your identity.
 
-First, run the development server:
+Built as a learning project to explore Next.js App Router, Supabase, and realtime data sync.
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## How it works
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Every visitor's public IP address is hashed and used as a `network_key`. Posts are scoped to that key — so everyone behind the same router (same WiFi/office/cafe) sees the same shared space, and no one else does.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Shared note** — one live, auto-saving text note per network. Edits sync instantly across every device on that network via Supabase Realtime.
+- **Files** — drag-and-drop, click-to-browse, or paste-to-upload. Download or delete anytime; anyone on the network can manage anything (fully open, no ownership model).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Tech stack
 
-## Learn More
+- **Next.js** (App Router, TypeScript)
+- **Supabase** — Postgres database, Storage (file uploads), Realtime (live sync)
+- **Tailwind CSS**
+- **Vercel** (deployment)
 
-To learn more about Next.js, take a look at the following resources:
+## Getting started
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+1. Clone the repo and install dependencies:
+   ```bash
+   npm install
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+2. Create a [Supabase](https://supabase.com) project.
 
-## Deploy on Vercel
+3. In the Supabase SQL Editor, create the `posts` table:
+   ```sql
+   create table posts (
+     id uuid primary key default gen_random_uuid(),
+     network_key text not null,
+     type text not null check (type in ('text', 'file')),
+     content text not null,
+     file_name text,
+     file_size integer,
+     mime_type text,
+     created_at timestamptz not null default now()
+   );
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+   create index posts_network_key_created_at_idx
+     on posts (network_key, created_at desc);
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+   alter table posts enable row level security;
+
+   create policy "Anyone can read posts" on posts for select using (true);
+   create policy "Anyone can insert posts" on posts for insert with check (true);
+   create policy "Anyone can update posts" on posts for update using (true);
+   create policy "Anyone can delete posts" on posts for delete using (true);
+   ```
+
+4. In Supabase **Storage**, create a public bucket named `files`, then run:
+   ```sql
+   create policy "Anyone can upload files" on storage.objects for insert with check (bucket_id = 'files');
+   create policy "Anyone can read files" on storage.objects for select using (bucket_id = 'files');
+   ```
+
+5. In Supabase **Database → Replication**, enable Realtime on the `posts` table.
+
+6. Create `.env.local` in the project root:
+   ```
+   NEXT_PUBLIC_SUPABASE_URL=your-project-url
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
+   ```
+
+7. Run the dev server:
+   ```bash
+   npm run dev
+   ```
+
+## Notes
+
+- Uses `x-forwarded-for` to identify the visitor's public IP; works when deployed (e.g. Vercel), and falls back to a shared `'unknown'` key during local development.
+- File uploads are capped at 10 MB, enforced both client- and server-side.
+- No accounts, no per-post ownership — deletion is open to anyone on the network by design.
