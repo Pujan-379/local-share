@@ -1,46 +1,63 @@
-"use client";
-import { supabase } from "@/lib/db";
-import { useState, useEffect } from "react";
-import { Post } from "@/types/post";
-export default function SharedNote() {
-  const [text, setText] = useState("");
+'use client';
 
-  // Load existing note content on mount
+import { useState, useEffect, useRef } from 'react';
+import { Loader2 } from 'lucide-react';
+import { supabase } from '@/lib/db';
+
+export default function SharedNote() {
+  const [text, setText] = useState('');
+  const [justUpdated, setJustUpdated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const textRef = useRef(text);
+
+  // Keep a ref in sync with the latest text, so the realtime
+  // callback (set up once on mount) can always see the current value
+  useEffect(() => {
+    textRef.current = text;
+  }, [text]);
+
   useEffect(() => {
     async function loadShared() {
-      const res = await fetch("/api/posts");
-      const data: Post[] = await res.json();
-      const existing = data.find((post) => post.type === "text");
+      const res = await fetch('/api/posts');
+      const data = await res.json();
+      const existing = data.find((post: any) => post.type === 'text');
       if (existing) setText(existing.content);
+      setIsLoading(false);
     }
     loadShared();
   }, []);
 
-  // 2. Debounced auto-save whenever `text` changes
   useEffect(() => {
     const timer = setTimeout(() => {
-      fetch("/api/posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "text", content: text }),
+      fetch('/api/posts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'text', content: text }),
       });
-    }, 1200);
+    }, 800);
 
     return () => clearTimeout(timer);
   }, [text]);
 
-  // Realtime: listen for changes to the text post from OTHER tabs/devices
   useEffect(() => {
     const channel = supabase
-      .channel("posts-changes")
+      .channel('posts-changes')
       .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "posts" },
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'posts' },
         (payload) => {
-          if (payload.new && (payload.new as any).type === "text") {
-            setText((payload.new as any).content);
+          if (payload.new && (payload.new as any).type === 'text') {
+            const newContent = (payload.new as any).content;
+
+            // Only treat this as a "remote" update (and pulse) if it's
+            // actually different from what's already on screen
+            if (newContent !== textRef.current) {
+              setText(newContent);
+              setJustUpdated(true);
+              setTimeout(() => setJustUpdated(false), 700);
+            }
           }
-        },
+        }
       )
       .subscribe();
 
@@ -50,10 +67,26 @@ export default function SharedNote() {
   }, []);
 
   return (
-    <textarea
-      value={text}
-      onChange={(e) => setText(e.target.value)}
-      placeholder="Share something with this network..."
-    />
+    <div className="relative w-full">
+      {isLoading && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <Loader2 size={20} className="text-[#5A5F68] animate-spin" />
+        </div>
+      )}
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder="Start typing..."
+        className={`w-full min-h-[60vh] sm:min-h-[70vh] bg-[#1A1D22] text-[#E8E6E1] placeholder-[#5A5F68]
+                   rounded-xl border outline-none p-4 sm:p-5 text-base leading-relaxed resize-none
+                   transition-all duration-700
+                   ${isLoading ? 'opacity-0' : 'opacity-100'}
+                   ${
+                     justUpdated
+                       ? 'border-[#4ADE80] shadow-[0_0_0_3px_rgba(74,222,128,0.15)]'
+                       : 'border-[#2A2D33] focus:border-[#4ADE80]'
+                   }`}
+      />
+    </div>
   );
 }
