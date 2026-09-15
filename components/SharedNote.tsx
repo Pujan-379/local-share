@@ -36,7 +36,7 @@ export default function SharedNote() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ type: 'text', content: text }),
     });
-  }, 800);
+  }, 1300);
 
   return () => clearTimeout(timer);
 }, [text, isLoading]);
