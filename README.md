@@ -3,6 +3,7 @@
 Anonymous, network-scoped content sharing. Anyone connected to the same WiFi can share text or files — no login, no signup. Your network *is* your identity.
 
 Built as a learning project to explore Next.js App Router, Supabase, and realtime data sync.
+**Live:** [local-share-lovat.vercel.app](https://local-share-lovat.vercel.app)
 
 ## How it works
 
