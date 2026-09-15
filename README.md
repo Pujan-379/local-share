@@ -74,5 +74,5 @@ Every visitor's public IP address is hashed and used as a `network_key`. Posts a
 ## Notes
 
 - Uses `x-forwarded-for` to identify the visitor's public IP; works when deployed (e.g. Vercel), and falls back to a shared `'unknown'` key during local development.
-- File uploads are capped at 10 MB, enforced both client- and server-side.
+- File uploads are capped at 25 MB, enforced both client- and server-side.
 - No accounts, no per-post ownership — deletion is open to anyone on the network by design.
